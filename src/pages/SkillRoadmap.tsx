@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Starscape } from "@/components/Starscape";
 import { Sidebar } from "@/components/Sidebar";
-import { ArrowLeft, Check, Lock, ChevronDown, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Check, Lock, ChevronDown, Sparkles, Zap, Target } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -147,36 +147,60 @@ const SkillRoadmap = () => {
 
         <div className="space-y-8">
           {stages.map((stage, stageIndex) => (
-            <div key={stageIndex} className="relative">
+            <div key={stageIndex} className="relative group">
               {/* Stage Card */}
               <div
                 className={cn(
-                  "glassmorphism p-6 rounded-lg transition-all duration-300",
+                  "glassmorphism p-6 rounded-lg transition-all duration-300 relative overflow-hidden",
                   stage.locked ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:border-neon-cyan",
-                  stage.completed && "border-neon-green",
-                  expandedStage === stageIndex && "border-neon-cyan"
+                  stage.completed ? "border-neon-green" : "border-neon-cyan/20",
+                  expandedStage === stageIndex && "border-neon-cyan scale-105",
+                  !stage.completed && !stage.locked && "hover:shadow-[0_0_20px_rgba(0,255,255,0.3)]"
                 )}
                 onClick={() => handleStageClick(stageIndex)}
               >
-                <div className="flex items-center justify-between">
+                {/* Background Animation */}
+                {!stage.completed && !stage.locked && (
+                  <div className="absolute inset-0 bg-gradient-to-r from-neon-cyan/5 to-neon-magenta/5 animate-pulse" />
+                )}
+                
+                <div className="relative flex items-center justify-between">
                   <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 rounded-full bg-neon-cyan/20 flex items-center justify-center">
+                    <div className={cn(
+                      "w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300",
+                      stage.completed ? "bg-neon-green/20" : 
+                      stage.locked ? "bg-gray-500/20" : 
+                      "bg-gradient-to-br from-neon-cyan/30 to-neon-magenta/30 group-hover:from-neon-cyan/40 group-hover:to-neon-magenta/40"
+                    )}>
                       {stage.completed ? (
-                        <Check className="w-6 h-6 text-neon-green" />
+                        <Check className="w-7 h-7 text-neon-green" />
                       ) : stage.locked ? (
-                        <Lock className="w-6 h-6 text-gray-500" />
+                        <Lock className="w-7 h-7 text-gray-500" />
                       ) : (
-                        <span className="text-2xl font-bold">{stageIndex + 1}</span>
+                        <div className="relative">
+                          <span className="text-2xl font-bold">{stageIndex + 1}</span>
+                          <Sparkles className="absolute -top-2 -right-2 w-4 h-4 text-neon-cyan animate-pulse" />
+                        </div>
                       )}
                     </div>
                     <div>
-                      <h3 className="text-2xl font-bold">{stage.stage}</h3>
-                      <p className="text-gray-300">{stage.description}</p>
+                      <h3 className={cn(
+                        "text-2xl font-bold transition-all duration-300",
+                        stage.completed ? "text-neon-green" : 
+                        stage.locked ? "text-gray-500" : 
+                        "text-white group-hover:text-neon-cyan"
+                      )}>{stage.stage}</h3>
+                      <p className={cn(
+                        "text-gray-300 transition-all duration-300",
+                        !stage.locked && "group-hover:text-neon-cyan/80"
+                      )}>{stage.description}</p>
                     </div>
                   </div>
                   <ChevronDown className={cn(
-                    "w-6 h-6 transition-transform duration-300",
-                    expandedStage === stageIndex && "transform rotate-180"
+                    "w-6 h-6 transition-all duration-300",
+                    expandedStage === stageIndex ? "transform rotate-180 text-neon-cyan" : 
+                    stage.locked ? "text-gray-500" : 
+                    "text-neon-cyan/50 group-hover:text-neon-cyan"
                   )} />
                 </div>
               </div>
@@ -188,13 +212,31 @@ const SkillRoadmap = () => {
                     <div
                       key={taskIndex}
                       className={cn(
-                        "glassmorphism p-4 rounded-lg",
-                        task.completed ? "border-neon-green" : "border-neon-cyan/20"
+                        "glassmorphism p-4 rounded-lg relative overflow-hidden transition-all duration-300",
+                        task.completed ? "border-neon-green" : "border-neon-cyan/20 hover:border-neon-cyan",
+                        !task.completed && "hover:shadow-[0_0_15px_rgba(0,255,255,0.2)]"
                       )}
                     >
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="text-lg font-semibold">{task.task}</h4>
-                        {task.completed && <Check className="w-5 h-5 text-neon-green" />}
+                      {!task.completed && (
+                        <div className="absolute inset-0 bg-gradient-to-r from-neon-cyan/5 to-neon-magenta/5 animate-pulse" />
+                      )}
+                      <div className="relative flex items-center justify-between mb-2">
+                        <div className="flex items-center space-x-3">
+                          <div className={cn(
+                            "w-8 h-8 rounded-full flex items-center justify-center",
+                            task.completed ? "bg-neon-green/20" : "bg-neon-cyan/20"
+                          )}>
+                            {task.completed ? (
+                              <Check className="w-4 h-4 text-neon-green" />
+                            ) : (
+                              <Target className="w-4 h-4 text-neon-cyan" />
+                            )}
+                          </div>
+                          <h4 className={cn(
+                            "text-lg font-semibold",
+                            task.completed ? "text-neon-green" : "text-white"
+                          )}>{task.task}</h4>
+                        </div>
                       </div>
                       <p className="text-gray-300 text-sm mb-2">{task.description}</p>
                       <div className="bg-white/5 p-3 rounded-lg mb-3">
@@ -203,8 +245,9 @@ const SkillRoadmap = () => {
                       {!task.completed && (
                         <div className="flex items-center space-x-4">
                           <label className="flex-1">
-                            <div className="flex items-center justify-center space-x-2 p-2 border border-dashed border-neon-cyan rounded-lg cursor-pointer hover:bg-neon-cyan/10 transition-all duration-300">
-                              <span>Upload Proof</span>
+                            <div className="flex items-center justify-center space-x-2 p-2 border border-dashed border-neon-cyan rounded-lg cursor-pointer hover:bg-neon-cyan/10 transition-all duration-300 group">
+                              <Zap className="w-4 h-4 text-neon-cyan group-hover:animate-pulse" />
+                              <span className="text-neon-cyan group-hover:text-white">Upload Proof</span>
                             </div>
                             <input
                               type="file"
@@ -233,7 +276,7 @@ const SkillRoadmap = () => {
 
               {/* Connection Line */}
               {stageIndex < stages.length - 1 && (
-                <div className="absolute left-6 top-[calc(100%+1rem)] w-0.5 h-8 bg-neon-cyan/30" />
+                <div className="absolute left-6 top-[calc(100%+1rem)] w-0.5 h-8 bg-gradient-to-b from-neon-cyan/30 to-neon-magenta/30" />
               )}
             </div>
           ))}
