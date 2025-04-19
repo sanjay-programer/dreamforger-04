@@ -132,9 +132,36 @@ const SkillRoadmap = () => {
   };
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex relative overflow-hidden">
+      {/* Space Background */}
+      <div className="absolute inset-0 bg-gradient-to-b from-navy-900 via-black to-navy-900">
+        {/* Twinkling Stars */}
+        <div className="absolute inset-0 overflow-hidden">
+          {Array.from({ length: 100 }).map((_, i) => (
+            <div
+              key={i}
+              className="absolute bg-white rounded-full animate-pulse"
+              style={{
+                width: `${Math.random() * 2 + 1}px`,
+                height: `${Math.random() * 2 + 1}px`,
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                animationDuration: `${Math.random() * 3 + 2}s`,
+                animationDelay: `${Math.random() * 2}s`,
+                opacity: Math.random() * 0.5 + 0.3,
+              }}
+            />
+          ))}
+        </div>
+        {/* Nebula Effect */}
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-neon-cyan/10 to-neon-magenta/10 blur-3xl" />
+          <div className="absolute bottom-0 right-0 w-full h-full bg-gradient-to-tl from-neon-purple/10 to-neon-cyan/10 blur-3xl" />
+        </div>
+      </div>
+
       <Sidebar />
-      <div className="flex-1 pl-[240px] p-8">
+      <div className="flex-1 pl-[240px] p-8 relative">
         <div className="flex items-center mb-8">
           <button
             onClick={() => navigate(-1)}
@@ -151,7 +178,7 @@ const SkillRoadmap = () => {
               {/* Stage Card */}
               <div
                 className={cn(
-                  "glassmorphism p-6 rounded-lg transition-all duration-300 relative overflow-hidden",
+                  "glassmorphism p-6 rounded-lg transition-all duration-300 relative overflow-hidden backdrop-blur-sm",
                   stage.locked ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:border-neon-cyan",
                   stage.completed ? "border-neon-green" : "border-neon-cyan/20",
                   expandedStage === stageIndex && "border-neon-cyan scale-105",
@@ -212,7 +239,7 @@ const SkillRoadmap = () => {
                     <div
                       key={taskIndex}
                       className={cn(
-                        "glassmorphism p-4 rounded-lg relative overflow-hidden transition-all duration-300",
+                        "glassmorphism p-4 rounded-lg relative overflow-hidden transition-all duration-300 backdrop-blur-sm",
                         task.completed ? "border-neon-green" : "border-neon-cyan/20 hover:border-neon-cyan",
                         !task.completed && "hover:shadow-[0_0_15px_rgba(0,255,255,0.2)]"
                       )}
