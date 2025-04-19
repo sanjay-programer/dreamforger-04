@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Starscape } from "@/components/Starscape";
 import { Sidebar } from "@/components/Sidebar";
-import { ArrowLeft, Check, Lock, ChevronDown, Sparkles, Zap, Target } from 'lucide-react';
+import { ArrowLeft, Check, Lock, ChevronDown, Sparkles, Upload, Target, PartyPopper } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -26,8 +26,39 @@ const SkillRoadmap = () => {
   const [stages, setStages] = useState<Stage[]>([]);
   const [currentStage, setCurrentStage] = useState(0);
   const [expandedStage, setExpandedStage] = useState<number | null>(0);
+  const [showCompletion, setShowCompletion] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  const fetchTasksForStage = async (stageIndex: number, stage: Stage) => {
+    try {
+      const response = await fetch('http://127.0.0.1:8000/generate-tasks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          skill: skillName,
+          stage: stage.stage,
+          description: stage.description
+        }),
+      });
+
+      const data = await response.json();
+      if (data.response && data.response.tasks) {
+        setStages(prev => {
+          const updated = [...prev];
+          updated[stageIndex] = {
+            ...updated[stageIndex],
+            tasks: data.response.tasks.map((task: Task) => ({ ...task, completed: false }))
+          };
+          return updated;
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching tasks:', error);
+    }
+  };
 
   useEffect(() => {
     const fetchRoadmap = async () => {
@@ -44,19 +75,20 @@ const SkillRoadmap = () => {
 
         const data = await response.json();
         if (data[skillName!]) {
-          // Initialize stages with completion status
           const initializedStages = data[skillName!].map((stage: Stage, index: number) => ({
             ...stage,
             completed: index < currentStage,
             locked: index > currentStage,
-            tasks: [] // We'll fetch tasks for each stage
+            tasks: []
           }));
           setStages(initializedStages);
           
-          // Fetch tasks for the first stage
-          if (initializedStages.length > 0) {
-            fetchTasksForStage(0, initializedStages[0]);
-          }
+          // Fetch tasks for all unlocked stages
+          initializedStages.forEach((stage, index) => {
+            if (!stage.locked) {
+              fetchTasksForStage(index, stage);
+            }
+          });
         }
       } catch (error) {
         toast({
@@ -64,36 +96,6 @@ const SkillRoadmap = () => {
           description: "An error occurred while fetching roadmap",
           variant: "destructive",
         });
-      }
-    };
-
-    const fetchTasksForStage = async (stageIndex: number, stage: Stage) => {
-      try {
-        const response = await fetch('http://127.0.0.1:8000/generate-tasks', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            skill: skillName,
-            stage: stage.stage,
-            description: stage.description
-          }),
-        });
-
-        const data = await response.json();
-        if (data.response && data.response.tasks) {
-          setStages(prev => {
-            const updated = [...prev];
-            updated[stageIndex] = {
-              ...updated[stageIndex],
-              tasks: data.response.tasks.map((task: Task) => ({ ...task, completed: false }))
-            };
-            return updated;
-          });
-        }
-      } catch (error) {
-        console.error('Error fetching tasks:', error);
       }
     };
 
@@ -117,14 +119,17 @@ const SkillRoadmap = () => {
       const updated = [...prev];
       updated[stageIndex].tasks![taskIndex].completed = true;
       
-      // Check if all tasks in the stage are completed
       const allTasksCompleted = updated[stageIndex].tasks?.every(task => task.completed);
       if (allTasksCompleted) {
         updated[stageIndex].completed = true;
         if (stageIndex < updated.length - 1) {
           updated[stageIndex + 1].locked = false;
+          // Fetch tasks for the newly unlocked stage
+          fetchTasksForStage(stageIndex + 1, updated[stageIndex + 1]);
         }
         setCurrentStage(stageIndex + 1);
+        setShowCompletion(true);
+        setTimeout(() => setShowCompletion(false), 3000);
       }
       
       return updated;
@@ -171,6 +176,20 @@ const SkillRoadmap = () => {
           </button>
           <h1 className="text-5xl font-bold neon-text-cyan">Skill Roadmap</h1>
         </div>
+
+        {showCompletion && (
+          <div className="fixed inset-0 flex items-center justify-center z-50">
+            <div className="glassmorphism p-8 rounded-lg text-center max-w-md mx-4">
+              <div className="w-20 h-20 mx-auto bg-neon-green/20 rounded-full flex items-center justify-center mb-6">
+                <PartyPopper className="w-10 h-10 text-neon-green" />
+              </div>
+              <h2 className="text-3xl font-bold mb-4 neon-text-green">Stage Completed!</h2>
+              <p className="text-xl text-gray-300 mb-6">
+                Congratulations! You've unlocked the next stage.
+              </p>
+            </div>
+          </div>
+        )}
 
         <div className="space-y-8">
           {stages.map((stage, stageIndex) => (
@@ -239,61 +258,62 @@ const SkillRoadmap = () => {
                     <div
                       key={taskIndex}
                       className={cn(
-                        "glassmorphism p-4 rounded-lg relative overflow-hidden transition-all duration-300 backdrop-blur-sm",
-                        task.completed ? "border-neon-green" : "border-neon-cyan/20 hover:border-neon-cyan",
-                        !task.completed && "hover:shadow-[0_0_15px_rgba(0,255,255,0.2)]"
+                        "glassmorphism p-6 rounded-lg relative overflow-hidden transition-all duration-300 backdrop-blur-sm",
+                        task.completed ? "border-neon-green" : "border-neon-cyan/20"
                       )}
                     >
-                      {!task.completed && (
-                        <div className="absolute inset-0 bg-gradient-to-r from-neon-cyan/5 to-neon-magenta/5 animate-pulse" />
-                      )}
-                      <div className="relative flex items-center justify-between mb-2">
-                        <div className="flex items-center space-x-3">
-                          <div className={cn(
-                            "w-8 h-8 rounded-full flex items-center justify-center",
-                            task.completed ? "bg-neon-green/20" : "bg-neon-cyan/20"
-                          )}>
-                            {task.completed ? (
-                              <Check className="w-4 h-4 text-neon-green" />
-                            ) : (
-                              <Target className="w-4 h-4 text-neon-cyan" />
-                            )}
+                      <div className="relative">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center space-x-3">
+                            <div className={cn(
+                              "w-10 h-10 rounded-full flex items-center justify-center",
+                              task.completed ? "bg-neon-green/20" : "bg-neon-cyan/20"
+                            )}>
+                              {task.completed ? (
+                                <Check className="w-6 h-6 text-neon-green" />
+                              ) : (
+                                <Target className="w-6 h-6 text-neon-cyan" />
+                              )}
+                            </div>
+                            <h4 className={cn(
+                              "text-xl font-bold",
+                              task.completed ? "text-neon-green" : "text-white"
+                            )}>{task.task}</h4>
                           </div>
-                          <h4 className={cn(
-                            "text-lg font-semibold",
-                            task.completed ? "text-neon-green" : "text-white"
-                          )}>{task.task}</h4>
+                        </div>
+                        <p className="text-lg text-gray-300 mb-4">{task.description}</p>
+                        <div className="bg-white/5 p-4 rounded-lg mb-4">
+                          <p className="text-lg text-gray-300">Proof Required: {task.proof}</p>
                         </div>
                       </div>
-                      <p className="text-gray-300 text-sm mb-2">{task.description}</p>
-                      <div className="bg-white/5 p-3 rounded-lg mb-3">
-                        <p className="text-sm text-gray-300">Proof Required: {task.proof}</p>
-                      </div>
+
                       {!task.completed && (
-                        <div className="flex items-center space-x-4">
-                          <label className="flex-1">
-                            <div className="flex items-center justify-center space-x-2 p-2 border border-dashed border-neon-cyan rounded-lg cursor-pointer hover:bg-neon-cyan/10 transition-all duration-300 group">
-                              <Zap className="w-4 h-4 text-neon-cyan group-hover:animate-pulse" />
-                              <span className="text-neon-cyan group-hover:text-white">Upload Proof</span>
-                            </div>
-                            <input
-                              type="file"
-                              className="hidden"
-                              onChange={(e) => {
-                                if (e.target.files?.[0]) {
-                                  // Simulate file upload
-                                  setTimeout(() => {
-                                    handleTaskComplete(stageIndex, taskIndex);
-                                    toast({
-                                      title: "Task Completed!",
-                                      description: "Great job! You've completed this task.",
-                                      variant: "default",
-                                    });
-                                  }, 1000);
-                                }
-                              }}
-                            />
-                          </label>
+                        <div className="relative z-10">
+                          <input
+                            type="file"
+                            id={`file-upload-${stageIndex}-${taskIndex}`}
+                            className="hidden"
+                            onChange={(e) => {
+                              if (e.target.files?.[0]) {
+                                // Simulate file upload
+                                setTimeout(() => {
+                                  handleTaskComplete(stageIndex, taskIndex);
+                                  toast({
+                                    title: "Task Completed!",
+                                    description: "Great job! You've completed this task.",
+                                    variant: "default",
+                                  });
+                                }, 1000);
+                              }
+                            }}
+                          />
+                          <button
+                            onClick={() => document.getElementById(`file-upload-${stageIndex}-${taskIndex}`)?.click()}
+                            className="w-full px-6 py-3 bg-neon-cyan/20 hover:bg-neon-cyan/30 border border-neon-cyan rounded-lg transition-all duration-300 flex items-center justify-center space-x-2 cursor-pointer"
+                          >
+                            <Upload className="w-5 h-5 text-neon-cyan" />
+                            <span className="text-neon-cyan">Upload</span>
+                          </button>
                         </div>
                       )}
                     </div>
