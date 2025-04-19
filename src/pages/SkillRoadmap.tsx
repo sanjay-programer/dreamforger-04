@@ -2,17 +2,21 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Starscape } from "@/components/Starscape";
 import { Sidebar } from "@/components/Sidebar";
-import { ArrowLeft, Check, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Check, ChevronRight, Lock } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { cn } from '@/lib/utils';
 
 interface Stage {
   stage: string;
   description: string;
+  completed?: boolean;
+  locked?: boolean;
 }
 
 const SkillRoadmap = () => {
   const { skillName } = useParams();
   const [stages, setStages] = useState<Stage[]>([]);
+  const [currentStage, setCurrentStage] = useState(0);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -31,7 +35,13 @@ const SkillRoadmap = () => {
 
         const data = await response.json();
         if (data[skillName!]) {
-          setStages(data[skillName!]);
+          // Initialize stages with completion status
+          const initializedStages = data[skillName!].map((stage: Stage, index: number) => ({
+            ...stage,
+            completed: index < currentStage,
+            locked: index > currentStage
+          }));
+          setStages(initializedStages);
         } else {
           toast({
             title: "Error",
@@ -49,11 +59,30 @@ const SkillRoadmap = () => {
     };
 
     fetchRoadmap();
-  }, [skillName, toast]);
+  }, [skillName, currentStage, toast]);
 
-  const handleStageClick = (stage: Stage) => {
+  const handleStageClick = (stage: Stage, index: number) => {
+    if (stage.locked) {
+      toast({
+        title: "Stage Locked",
+        description: "Complete the previous stages to unlock this one",
+        variant: "destructive",
+      });
+      return;
+    }
     navigate(`/skill-tasks/${encodeURIComponent(skillName!)}/${encodeURIComponent(stage.stage)}`, {
-      state: { description: stage.description }
+      state: { 
+        description: stage.description,
+        stageIndex: index,
+        onComplete: () => {
+          setCurrentStage(index + 1);
+          toast({
+            title: "Stage Completed!",
+            description: "You've unlocked the next stage",
+            variant: "default",
+          });
+        }
+      }
     });
   };
 
@@ -75,15 +104,27 @@ const SkillRoadmap = () => {
           {stages.map((stage, index) => (
             <div
               key={index}
-              className="glassmorphism p-6 rounded-lg cursor-pointer hover:border-neon-cyan transition-all duration-300"
-              onClick={() => handleStageClick(stage)}
+              className={cn(
+                "glassmorphism p-6 rounded-lg transition-all duration-300",
+                stage.locked ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:border-neon-cyan",
+                stage.completed && "border-neon-green"
+              )}
+              onClick={() => handleStageClick(stage, index)}
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-2xl font-bold mb-2">{stage.stage}</h3>
-                  <p className="text-gray-300">{stage.description}</p>
+                  <div className="flex items-center space-x-2">
+                    <h3 className="text-2xl font-bold">{stage.stage}</h3>
+                    {stage.completed && (
+                      <Check className="w-6 h-6 text-neon-green" />
+                    )}
+                    {stage.locked && (
+                      <Lock className="w-5 h-5 text-gray-500" />
+                    )}
+                  </div>
+                  <p className="text-gray-300 mt-2">{stage.description}</p>
                 </div>
-                <ChevronRight className="w-6 h-6" />
+                {!stage.locked && <ChevronRight className="w-6 h-6" />}
               </div>
             </div>
           ))}

@@ -151,18 +151,22 @@ const Dashboard = () => {
           <h2 className="text-4xl font-bold neon-text-magenta mb-6">Divine Skills</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {skills.map((skill) => (
-              <div key={skill.id} className="glassmorphism p-6 rounded-lg">
-                <h3 className="text-2xl font-bold mb-2">{skill.name}</h3>
-                <p className="text-gray-300 mb-4">{skill.description}</p>
-                <div className="flex items-center space-x-2 mb-4">
-                  <Zap className="w-5 h-5 text-neon-cyan" />
-                  <span className="text-neon-cyan">{skill.power}</span>
+              <div key={skill.id} className="glassmorphism p-6 rounded-lg hover:border-neon-cyan transition-all duration-300 group">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-2xl font-bold">{skill.name}</h3>
+                  <div className="flex items-center space-x-2">
+                    <Zap className="w-5 h-5 text-neon-cyan" />
+                    <span className="text-neon-cyan text-sm">{skill.power}</span>
+                  </div>
                 </div>
                 <button
                   onClick={() => handleActivateSkill(skill)}
-                  className="w-full py-2 bg-neon-cyan/20 hover:bg-neon-cyan/30 border border-neon-cyan rounded-lg transition-all duration-300"
+                  className="w-full py-3 bg-gradient-to-r from-neon-cyan/20 to-neon-magenta/20 hover:from-neon-cyan/30 hover:to-neon-magenta/30 border border-neon-cyan rounded-lg transition-all duration-300 group-hover:scale-105"
                 >
-                  Activate
+                  <span className="flex items-center justify-center space-x-2">
+                    <Zap className="w-5 h-5" />
+                    <span className="font-bold">Activate Skill</span>
+                  </span>
                 </button>
               </div>
             ))}
