@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Starscape } from "@/components/Starscape";
 import { Sidebar } from "@/components/Sidebar";
-import { ArrowLeft, Check, Lock, ChevronDown, Sparkles, Upload, Target, PartyPopper } from 'lucide-react';
+import { ArrowLeft, Check, Lock, ChevronDown, Sparkles, Upload, Target, PartyPopper, Volume2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -27,6 +27,9 @@ const SkillRoadmap = () => {
   const [currentStage, setCurrentStage] = useState(0);
   const [expandedStage, setExpandedStage] = useState<number | null>(0);
   const [showCompletion, setShowCompletion] = useState(false);
+  const [currentTaskIndex, setCurrentTaskIndex] = useState(0);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [voicesLoaded, setVoicesLoaded] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -102,6 +105,23 @@ const SkillRoadmap = () => {
     fetchRoadmap();
   }, [skillName, currentStage, toast]);
 
+  // Initialize voices when component mounts
+  useEffect(() => {
+    const loadVoices = () => {
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length > 0) {
+        setVoicesLoaded(true);
+      }
+    };
+
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+
+    return () => {
+      window.speechSynthesis.onvoiceschanged = null;
+    };
+  }, []);
+
   const handleStageClick = (stageIndex: number) => {
     if (stages[stageIndex].locked) {
       toast({
@@ -114,6 +134,77 @@ const SkillRoadmap = () => {
     setExpandedStage(expandedStage === stageIndex ? null : stageIndex);
   };
 
+  const getRandomAppreciation = () => {
+    const appreciations = [
+      "Fantastic work! You're making great progress!",
+      "Amazing job! Your dedication is inspiring!",
+      "Incredible progress! You're really getting the hang of this!",
+      "Outstanding achievement! You're on the right track!",
+      "Brilliant work! Your skills are growing!",
+      "You're on fire! Keep up this amazing momentum!",
+      "Simply amazing! You're learning so quickly!",
+      "You're crushing it! This is impressive!",
+      "Unbelievable work! You're a natural at this!",
+      "You're unstoppable! Your progress is remarkable!",
+      "Excellent work! You're mastering this skill!",
+      "Superb job! Your effort is paying off!",
+      "Terrific progress! You're really getting it!",
+      "Wonderful work! Your improvement is noticeable!",
+      "Impressive achievement! You're doing great!"
+    ];
+    return appreciations[Math.floor(Math.random() * appreciations.length)];
+  };
+
+  const getNextTaskMessage = () => {
+    const messages = [
+      "Now, let's move on to your next challenge:",
+      "Ready for your next task? Here it is:",
+      "Time for your next mission:",
+      "Your next objective awaits:",
+      "Let's tackle your next goal:",
+      "Moving forward, your next task is:",
+      "Up next, you'll be working on:",
+      "Your next step in this journey is:",
+      "Prepare for your next challenge:",
+      "Your next learning opportunity is:"
+    ];
+    return messages[Math.floor(Math.random() * messages.length)];
+  };
+
+  const speak = (text: string) => {
+    if (isSpeaking || !voicesLoaded) return;
+    
+    // Cancel any ongoing speech
+    window.speechSynthesis.cancel();
+    
+    const speech = new SpeechSynthesisUtterance();
+    speech.text = text;
+    speech.rate = 0.9;
+    speech.pitch = 1.1;
+    speech.volume = 1;
+    
+    const voices = window.speechSynthesis.getVoices();
+    const femaleVoices = voices.filter(voice => 
+      voice.name.toLowerCase().includes('female') || 
+      voice.name.toLowerCase().includes('woman') ||
+      voice.name.toLowerCase().includes('samantha') ||
+      voice.name.toLowerCase().includes('zira')
+    );
+    
+    if (femaleVoices.length > 0) {
+      speech.voice = femaleVoices[0];
+    } else if (voices.length > 0) {
+      speech.voice = voices[0];
+    }
+    
+    speech.onend = () => {
+      setIsSpeaking(false);
+    };
+    
+    setIsSpeaking(true);
+    window.speechSynthesis.speak(speech);
+  };
+
   const handleTaskComplete = (stageIndex: number, taskIndex: number) => {
     setStages(prev => {
       const updated = [...prev];
@@ -124,12 +215,29 @@ const SkillRoadmap = () => {
         updated[stageIndex].completed = true;
         if (stageIndex < updated.length - 1) {
           updated[stageIndex + 1].locked = false;
-          // Fetch tasks for the newly unlocked stage
           fetchTasksForStage(stageIndex + 1, updated[stageIndex + 1]);
         }
         setCurrentStage(stageIndex + 1);
         setShowCompletion(true);
+        
+        // Speak stage completion message
+        setTimeout(() => {
+          speak("Congratulations! You've completed this stage! What an amazing achievement! Your dedication and hard work have paid off!");
+        }, 500);
+        
         setTimeout(() => setShowCompletion(false), 3000);
+      } else {
+        // Move to next task
+        setCurrentTaskIndex(taskIndex + 1);
+        const nextTask = updated[stageIndex].tasks![taskIndex + 1];
+        if (nextTask) {
+          // Speak task completion and next task message
+          setTimeout(() => {
+            const appreciation = getRandomAppreciation();
+            const nextTaskMessage = getNextTaskMessage();
+            speak(`${appreciation} ${nextTaskMessage} ${nextTask.task}`);
+          }, 500);
+        }
       }
       
       return updated;
@@ -254,70 +362,75 @@ const SkillRoadmap = () => {
               {/* Tasks Section */}
               {expandedStage === stageIndex && stage.tasks && (
                 <div className="mt-4 ml-12 pl-6 border-l-2 border-neon-cyan/30 space-y-4">
-                  {stage.tasks.map((task, taskIndex) => (
-                    <div
-                      key={taskIndex}
-                      className={cn(
-                        "glassmorphism p-6 rounded-lg relative overflow-hidden transition-all duration-300 backdrop-blur-sm",
-                        task.completed ? "border-neon-green" : "border-neon-cyan/20"
-                      )}
-                    >
-                      <div className="relative">
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center space-x-3">
-                            <div className={cn(
-                              "w-10 h-10 rounded-full flex items-center justify-center",
-                              task.completed ? "bg-neon-green/20" : "bg-neon-cyan/20"
-                            )}>
-                              {task.completed ? (
-                                <Check className="w-6 h-6 text-neon-green" />
-                              ) : (
-                                <Target className="w-6 h-6 text-neon-cyan" />
-                              )}
+                  {stage.tasks.map((task, taskIndex) => {
+                    // Only show current and completed tasks
+                    if (taskIndex > currentTaskIndex && !task.completed) return null;
+                    
+                    return (
+                      <div
+                        key={taskIndex}
+                        className={cn(
+                          "glassmorphism p-6 rounded-lg relative overflow-hidden transition-all duration-300 backdrop-blur-sm",
+                          task.completed ? "border-neon-green" : "border-neon-cyan/20"
+                        )}
+                      >
+                        <div className="relative">
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center space-x-3">
+                              <div className={cn(
+                                "w-10 h-10 rounded-full flex items-center justify-center",
+                                task.completed ? "bg-neon-green/20" : "bg-neon-cyan/20"
+                              )}>
+                                {task.completed ? (
+                                  <Check className="w-6 h-6 text-neon-green" />
+                                ) : (
+                                  <Target className="w-6 h-6 text-neon-cyan" />
+                                )}
+                              </div>
+                              <h4 className={cn(
+                                "text-xl font-bold",
+                                task.completed ? "text-neon-green" : "text-white"
+                              )}>{task.task}</h4>
                             </div>
-                            <h4 className={cn(
-                              "text-xl font-bold",
-                              task.completed ? "text-neon-green" : "text-white"
-                            )}>{task.task}</h4>
+                          </div>
+                          <p className="text-lg text-gray-300 mb-4">{task.description}</p>
+                          <div className="bg-white/5 p-4 rounded-lg mb-4">
+                            <p className="text-lg text-gray-300">Proof Required: {task.proof}</p>
                           </div>
                         </div>
-                        <p className="text-lg text-gray-300 mb-4">{task.description}</p>
-                        <div className="bg-white/5 p-4 rounded-lg mb-4">
-                          <p className="text-lg text-gray-300">Proof Required: {task.proof}</p>
-                        </div>
-                      </div>
 
-                      {!task.completed && (
-                        <div className="relative z-10">
-                          <input
-                            type="file"
-                            id={`file-upload-${stageIndex}-${taskIndex}`}
-                            className="hidden"
-                            onChange={(e) => {
-                              if (e.target.files?.[0]) {
-                                // Simulate file upload
-                                setTimeout(() => {
-                                  handleTaskComplete(stageIndex, taskIndex);
-                                  toast({
-                                    title: "Task Completed!",
-                                    description: "Great job! You've completed this task.",
-                                    variant: "default",
-                                  });
-                                }, 1000);
-                              }
-                            }}
-                          />
-                          <button
-                            onClick={() => document.getElementById(`file-upload-${stageIndex}-${taskIndex}`)?.click()}
-                            className="w-full px-6 py-3 bg-neon-cyan/20 hover:bg-neon-cyan/30 border border-neon-cyan rounded-lg transition-all duration-300 flex items-center justify-center space-x-2 cursor-pointer"
-                          >
-                            <Upload className="w-5 h-5 text-neon-cyan" />
-                            <span className="text-neon-cyan">Upload</span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                        {!task.completed && (
+                          <div className="relative z-10">
+                            <input
+                              type="file"
+                              id={`file-upload-${stageIndex}-${taskIndex}`}
+                              className="hidden"
+                              onChange={(e) => {
+                                if (e.target.files?.[0]) {
+                                  // Simulate file upload
+                                  setTimeout(() => {
+                                    handleTaskComplete(stageIndex, taskIndex);
+                                    toast({
+                                      title: "Task Completed!",
+                                      description: "Great job! You've completed this task.",
+                                      variant: "default",
+                                    });
+                                  }, 1000);
+                                }
+                              }}
+                            />
+                            <button
+                              onClick={() => document.getElementById(`file-upload-${stageIndex}-${taskIndex}`)?.click()}
+                              className="w-full px-6 py-3 bg-neon-cyan/20 hover:bg-neon-cyan/30 border border-neon-cyan rounded-lg transition-all duration-300 flex items-center justify-center space-x-2 cursor-pointer"
+                            >
+                              <Upload className="w-5 h-5 text-neon-cyan" />
+                              <span className="text-neon-cyan">Upload</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
